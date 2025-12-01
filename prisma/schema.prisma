@@ -5,16 +5,129 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client-js"
+      provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
+      provider = "postgresql"
 }
 
-// مدل‌های داده خود را اینجا تعریف کنید
+
 model User {
-  id    Int     @id @default(autoincrement())
-  email String  @unique
-  name  String?
+      id                Int             @id @default(autoincrement())
+      email             String          @unique
+      name              String?
+      createdAt         DateTime        @default(now())
+      updatedAt         DateTime
+
+      products          Product[]
+      orders            Order[]
+
+      @@map("users")
+}
+
+
+model Product {
+      id                Int             @id @default(autoincrement())
+      slug              String          @unique
+      sku               String          @unique
+      barcode           String?         @unique
+      status            String
+      price             Int?
+      salePrice         Int?
+      startSale         DateTime?
+      endSale           DateTime?
+
+      creatorId         Int
+      creator           User            @relation(fields: [creatorId], references: [id])
+
+      stockQuantity     Int?
+      inStock           Boolean?
+      weight            Int?
+      description       String?
+      shortDescription  String?
+      createdAt         DateTime        @default(now())
+      brandId           Int?
+      brand             Brand?          @relation(fields: [brandId], references: [id])
+
+      sellerId          Int
+      seller            User            @relation(fields: [sellerId], references: [id])
+
+
+      @@map("products")
+}
+
+
+model Brand {
+      id                Int             @id @default(autoincrement())
+      slug              String          @unique
+      name              String          @unique
+      image             String?
+      products          Product[]
+
+      @@map("brands")
+}
+
+
+model Tag {
+      id                Int             @id @default(autoincrement())
+      slug              String          @unique
+      name              String          @unique
+      image             String?
+      description       String?
+
+      @@map("tags")
+}
+
+
+model Category {
+      id                Int             @id @default(autoincrement())
+      slug              String          @unique
+      name              String          @unique
+      image             String?
+      description       String?
+
+      @@map("categories")
+}
+
+
+model Order {
+      id                String          @id @default(uuid())
+      orderNumber       String          @unique
+      status            String
+      paymentStatus     String   
+      paymentMethod     String
+      itemsTotal        BigInt          @default(0)     // مجموع قیمت کالاها قبل از تخفیف
+      discountTotal     BigInt          @default(0)     // مجموع تخفیف‌ها
+      shippingCost      BigInt          @default(0)     // هزینه ارسال
+      taxTotal          BigInt          @default(0)     // مالیات (در صورت نیاز)
+      totalAmount       BigInt
+      
+      customerId        String
+      customer          User            @relation(fields: [customerId], references: [id])
+
+      @@map("orders")
+}
+
+
+model OrderItem {
+      id                String          @id @default(uuid())
+
+      orderId           String
+      order             Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+      productId         String
+      variantId         String?         // اگر محصول رنگ/سایز دارد
+
+      // اسنپ‌شات محصول در زمان خرید (خیلی مهم!)
+      title             String
+      thumbnail         String?
+      price             Int   
+      salePrice         Int             // قیمت واحد در زمان خرید (بعد از تخفیف محصول)
+      discount          Int
+      extraId           Int             // مثلا شماره فاکتور سپیدار
+      taxClass          String
+      quantity          Int
+
+      @@map("order_items")
 }
