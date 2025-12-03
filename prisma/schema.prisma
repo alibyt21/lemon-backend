@@ -20,10 +20,13 @@ model User {
       createdAt         DateTime        @default(now())
       updatedAt         DateTime
 
-      products          Product[]
-      orders            Order[]
+      createdProducts   Product[]       @relation("creator")
+      saleableProducts  Product[]       @relation("seller")
 
-      @@map("users")
+      orders            Order[]
+      cart              Cart?
+
+      @@map("user")
 }
 
 
@@ -39,7 +42,7 @@ model Product {
       endSale           DateTime?
 
       creatorId         Int
-      creator           User            @relation(fields: [creatorId], references: [id])
+      creator           User            @relation("creator", fields: [creatorId], references: [id])
 
       stockQuantity     Int?
       inStock           Boolean?
@@ -47,14 +50,121 @@ model Product {
       description       String?
       shortDescription  String?
       createdAt         DateTime        @default(now())
+
       brandId           Int?
       brand             Brand?          @relation(fields: [brandId], references: [id])
 
       sellerId          Int
-      seller            User            @relation(fields: [sellerId], references: [id])
+      seller            User            @relation("seller", fields: [sellerId], references: [id])
+
+      categories        ProductCategory[]
+
+      attributeValues   ProductAttributeValue[]
+
+      
+
+      cartItems         CartItem[]
+      @@map("product")
+}
 
 
-      @@map("products")
+model Attribute {
+      id                Int             @id @default(autoincrement())
+      name              String         
+      slug              String          @unique 
+      type              String          @default("text") 
+      
+      options           AttributeOption[] 
+      values            ProductAttributeValue[] 
+
+      @@map("attribute")
+}
+
+
+model AttributeOption {
+      id                Int             @id @default(autoincrement())
+      label             String  
+      value             String
+      attributeId       Int
+      attribute         Attribute       @relation(fields: [attributeId], references: [id])
+  
+      productValues     ProductAttributeValue[]
+
+      @@map("attribute_option")
+}
+
+model ProductAttributeValue {
+      id                Int             @id @default(autoincrement())
+      productId         Int
+      product           Product         @relation(fields: [productId], references: [id])
+  
+      attributeId       Int
+      attribute         Attribute       @relation(fields: [attributeId], references: [id])
+  
+      optionId          Int?
+      option            AttributeOption? @relation(fields: [optionId], references: [id])
+  
+  
+      value             String? 
+
+      @@map("product_attribute_value")
+}
+
+model ProductCategory {
+      productId         Int
+      categoryId        Int
+      isPrimary         Boolean?        @default(false)  // مثلاً دسته اصلی
+      sortOrder         Int?                      // ترتیب نمایش
+
+      product           Product         @relation(fields: [productId], references: [id])
+      category          Category        @relation(fields: [categoryId], references: [id])
+
+      @@id([productId, categoryId])     // کلید اصلی ترکیبی
+      @@map("product_category")
+}
+
+
+
+
+model Cart {
+      id                Int             @id @default(autoincrement())
+      customerId        Int             @unique
+      customer          User            @relation(fields: [customerId], references: [id])
+
+      cartItems         CartItem[]
+
+      @@map("cart")
+}
+
+model CartItem {
+      id                Int             @id @default(autoincrement())
+
+      cartId            Int
+      cart              Cart            @relation(fields: [cartId], references: [id])
+
+      productId         Int
+      product           Product         @relation(fields: [productId], references: [id])
+
+      quantity          Int
+
+      @@map("cart_item")
+}
+
+model Shipping {
+      id                Int             @id @default(autoincrement())
+
+      orderId           String             @unique
+      order             Order           @relation(fields: [orderId], references: [id])
+
+      address           String
+      latitude          Int?
+      longitude         Int?
+
+      method            String
+      trackingCode    String
+
+      @@map("shipping")
+      
 }
 
 
@@ -65,7 +175,7 @@ model Brand {
       image             String?
       products          Product[]
 
-      @@map("brands")
+      @@map("brand")
 }
 
 
@@ -76,7 +186,7 @@ model Tag {
       image             String?
       description       String?
 
-      @@map("tags")
+      @@map("tag")
 }
 
 
@@ -87,7 +197,16 @@ model Category {
       image             String?
       description       String?
 
-      @@map("categories")
+      // رابطه به والد (parent) - اختیاری چون دسته‌های ریشه parent ندارن
+      parentId          Int?     
+      parent            Category? @relation("CategoryTree", fields: [parentId], references: [id])
+
+      // رابطه به فرزندها (children) - همه فرزندهای مستقیم این دسته
+      children          Category[] @relation("CategoryTree")
+
+      products          ProductCategory[]
+
+      @@map("category")
 }
 
 
@@ -103,10 +222,13 @@ model Order {
       taxTotal          BigInt          @default(0)     // مالیات (در صورت نیاز)
       totalAmount       BigInt
       
-      customerId        String
+      customerId        Int
       customer          User            @relation(fields: [customerId], references: [id])
 
-      @@map("orders")
+      shipping          Shipping?
+      orderItems        OrderItem[]
+
+      @@map("order")
 }
 
 
@@ -129,5 +251,5 @@ model OrderItem {
       taxClass          String
       quantity          Int
 
-      @@map("order_items")
+      @@map("order_item")
 }
